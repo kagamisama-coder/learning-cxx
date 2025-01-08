@@ -1,4 +1,5 @@
 ﻿#include "../exercise.h"
+#include<cstring>
 
 // READ: 类模板 <https://zh.cppreference.com/w/cpp/language/class_template>
 
@@ -10,6 +11,10 @@ struct Tensor4D {
     Tensor4D(unsigned int const shape_[4], T const *data_) {
         unsigned int size = 1;
         // TODO: 填入正确的 shape 并计算 size
+        for (int i = 0; i < 4; ++i) {
+            shape[i] = shape_[i];
+            size *= shape[i];
+        }
         data = new T[size];
         std::memcpy(data, data_, size * sizeof(T));
     }
@@ -28,6 +33,40 @@ struct Tensor4D {
     // 则 `this` 与 `others` 相加时，3 个形状为 `[1, 2, 1, 4]` 的子张量各自与 `others` 对应项相加。
     Tensor4D &operator+=(Tensor4D const &others) {
         // TODO: 实现单向广播的加法
+        unsigned int this_shape[4], others_shape[4];
+        for (int i = 0; i < 4; ++i) {
+            this_shape[i] = shape[i];
+            others_shape[i] = others.shape[i];
+        }
+
+        // 检查是否可以进行单向广播
+        for (int i = 0; i < 4; ++i) {
+            if (this_shape[i] != others_shape[i] && others_shape[i] != 1) {
+                throw std::invalid_argument("Shapes are incompatible for broadcasting");
+            }
+        }
+
+        // 计算每个维度的步长
+        unsigned int this_strides[4], others_strides[4];
+        this_strides[3] = 1;
+        others_strides[3] = 1;
+        for (int i = 2; i >= 0; --i) {
+            this_strides[i] = this_strides[i + 1] * this_shape[i + 1];
+            others_strides[i] = others_strides[i + 1] * others_shape[i + 1];
+        }
+
+        // 进行加法运算
+        for (int i = 0; i < this_shape[0]; ++i) {
+            for (int j = 0; j < this_shape[1]; ++j) {
+                for (int k = 0; k < this_shape[2]; ++k) {
+                    for (int l = 0; l < this_shape[3]; ++l) {
+                        int this_index = i * this_strides[0] + j * this_strides[1] + k * this_strides[2] + l * this_strides[3];
+                        int others_index = (i % others_shape[0]) * others_strides[0] + (j % others_shape[1]) * others_strides[1] + (k % others_shape[2]) * others_strides[2] + (l % others_shape[3]) * others_strides[3];
+                        data[this_index] += others.data[others_index];
+                    }
+                }
+            }
+        }
         return *this;
     }
 };
